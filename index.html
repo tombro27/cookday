@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://generativelanguage.googleapis.com; img-src 'self' data:; base-uri 'none'"
+  />
+  <meta name="description" content="Plan your day's meals, grocery run and cooking to-dos around the time, budget and pantry you actually have." />
+  <title>CookDay — your cooking to-do list</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#day-form">Skip to the planner form</a>
+
+  <header class="site-header">
+    <h1>🍳 CookDay</h1>
+    <p class="tagline">
+      Tell it about your day — it plans breakfast, lunch and dinner, writes your
+      grocery list, suggests swaps and checks the budget. Then it hands you the to-do list.
+    </p>
+  </header>
+
+  <main>
+    <!-- ── Optional AI quick-fill ─────────────────────────────────── -->
+    <details class="ai-box" id="ai-box">
+      <summary>✨ Describe your day in plain words <span class="muted">(optional — uses your Gemini API key)</span></summary>
+      <div class="ai-fields">
+        <label for="ai-text">Your day, in your own words</label>
+        <textarea id="ai-text" rows="2" maxlength="500"
+          placeholder="e.g. Crazy busy Tuesday, cooking for 3, ₹400 to spend, no dairy please"></textarea>
+        <label for="ai-key">Gemini API key</label>
+        <input type="password" id="ai-key" autocomplete="off"
+          placeholder="Paste your key — kept only in this browser tab" />
+        <div class="ai-actions">
+          <button type="button" id="ai-parse">Fill the form with AI</button>
+          <button type="button" id="ai-clear-key" class="secondary">Forget key</button>
+        </div>
+        <p id="ai-status" class="status" role="status" aria-live="polite"></p>
+        <p class="muted small">
+          The key is sent only to Google's Gemini endpoint and kept in this tab's session
+          storage — never in the code or on any server of ours. No key? The form below
+          does everything.
+        </p>
+      </div>
+    </details>
+
+    <!-- ── The structured planning form ───────────────────────────── -->
+    <form id="day-form" aria-describedby="form-hint">
+      <h2>Your day</h2>
+      <p id="form-hint" class="muted">Every answer changes the plan — nothing here is decorative.</p>
+
+      <div class="form-grid">
+        <fieldset>
+          <legend>How does the day look?</legend>
+          <label><input type="radio" name="dayType" value="busy" /> Busy — barely time to cook</label>
+          <label><input type="radio" name="dayType" value="normal" checked /> Normal working day</label>
+          <label><input type="radio" name="dayType" value="relaxed" /> Relaxed — happy to spend time</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Diet</legend>
+          <label><input type="radio" name="diet" value="vegan" /> Vegan</label>
+          <label><input type="radio" name="diet" value="veg" checked /> Vegetarian</label>
+          <label><input type="radio" name="diet" value="egg" /> Eggetarian</label>
+          <label><input type="radio" name="diet" value="nonveg" /> Non-vegetarian</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Avoid (allergies / intolerances)</legend>
+          <label><input type="checkbox" name="allergies" value="dairy" /> Dairy</label>
+          <label><input type="checkbox" name="allergies" value="gluten" /> Gluten</label>
+          <label><input type="checkbox" name="allergies" value="nuts" /> Nuts</label>
+          <label><input type="checkbox" name="allergies" value="egg" /> Egg</label>
+          <label><input type="checkbox" name="allergies" value="soy" /> Soy</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>People &amp; money</legend>
+          <label for="servings">Cooking for how many?</label>
+          <input type="number" id="servings" name="servings" min="1" max="8" step="1" value="2" required />
+          <label for="budget">Grocery budget for the day (₹)</label>
+          <input type="number" id="budget" name="budget" min="50" max="5000" step="10" value="300" required />
+        </fieldset>
+
+        <fieldset>
+          <legend>Minutes you can spend per meal</legend>
+          <label for="time-breakfast">Breakfast</label>
+          <input type="number" id="time-breakfast" min="5" max="120" step="5" value="20" />
+          <label for="time-lunch">Lunch</label>
+          <input type="number" id="time-lunch" min="5" max="180" step="5" value="35" />
+          <label for="time-dinner">Dinner</label>
+          <input type="number" id="time-dinner" min="5" max="180" step="5" value="40" />
+        </fieldset>
+
+        <fieldset>
+          <legend>Already in your kitchen</legend>
+          <p class="muted small">Tick what you have — it's kept off the shopping bill.</p>
+          <div id="pantry-options" class="pantry-grid"><!-- filled by app.js --></div>
+        </fieldset>
+      </div>
+
+      <button type="submit" class="primary" id="plan-btn">Plan my day</button>
+    </form>
+
+    <!-- ── Results ────────────────────────────────────────────────── -->
+    <section id="results" hidden aria-live="polite">
+      <h2 id="results-heading" tabindex="-1">Your day, planned</h2>
+      <div id="budget-banner"></div>
+      <div id="plan-cards" class="cards"></div>
+
+      <section aria-labelledby="todo-heading">
+        <h3 id="todo-heading">✅ Today's cooking to-do list</h3>
+        <p class="muted small">Ticks are saved in your browser — regenerating a different plan resets them.</p>
+        <div id="todo-sections"></div>
+      </section>
+
+      <section aria-labelledby="grocery-heading">
+        <h3 id="grocery-heading">🛒 Grocery list</h3>
+        <div id="grocery-list"></div>
+      </section>
+
+      <section aria-labelledby="subs-heading">
+        <h3 id="subs-heading">🔄 Substitutions</h3>
+        <div id="subs-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Plans are computed locally by a deterministic decision engine — same inputs,
+      same plan, fully inspectable. Prices are typical Indian retail estimates, not live quotes.
+    </p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "cooking-todo-assistant",
+  "version": "1.0.0",
+  "description": "A smart cooking to-do list: plans your meals for the day, builds a grocery list, suggests substitutions and checks budget feasibility.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "private": true
+}

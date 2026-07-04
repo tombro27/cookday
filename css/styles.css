@@ -1,0 +1,230 @@
+/* CookDay — hand-rolled styles: system fonts, dark-mode aware, print-friendly. */
+
+:root {
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --text: #26221c;
+  --muted: #5f594f;
+  --accent: #c2410c;
+  --accent-contrast: #ffffff;
+  --border: #e5ddd0;
+  --ok: #166534;
+  --warn: #92400e;
+  --bad: #b91c1c;
+  --ok-bg: #ecfdf3;
+  --warn-bg: #fffbeb;
+  --bad-bg: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191613;
+    --surface: #232019;
+    --text: #f1ece3;
+    --muted: #b3ab9d;
+    --accent: #fb923c;
+    --accent-contrast: #26221c;
+    --border: #3a352c;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --ok-bg: #12271a;
+    --warn-bg: #2a2210;
+    --bad-bg: #2c1414;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  max-width: 60rem;
+  padding: 1rem 1.25rem 3rem;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+}
+.skip-link:focus {
+  position: static;
+  display: inline-block;
+  padding: 0.5rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.site-header h1 { margin-bottom: 0.25rem; }
+.tagline { color: var(--muted); max-width: 46rem; }
+
+h2, h3, h4 { line-height: 1.25; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+
+/* ── AI box ─────────────────────────────────────────────────────── */
+.ai-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+}
+.ai-box summary { cursor: pointer; font-weight: 600; }
+.ai-fields { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
+.ai-fields textarea, .ai-fields input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.ai-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.status { min-height: 1.4em; font-weight: 500; }
+
+/* ── Form ───────────────────────────────────────────────────────── */
+form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0;
+}
+legend { font-weight: 600; padding: 0 0.35rem; }
+fieldset label { display: block; padding: 0.2rem 0; }
+fieldset input[type='number'] {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.pantry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+button {
+  font: inherit;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+button:hover { filter: brightness(1.05); }
+button:disabled { opacity: 0.6; cursor: wait; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ── Results ────────────────────────────────────────────────────── */
+#results { margin-top: 2rem; }
+
+.banner {
+  padding: 0.9rem 1.1rem;
+  border-radius: 0.6rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+}
+.banner.comfortable { background: var(--ok-bg); color: var(--ok); }
+.banner.tight { background: var(--warn-bg); color: var(--warn); }
+.banner.over { background: var(--bad-bg); color: var(--bad); }
+.pill {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
+}
+.card h3 { margin: 0.1rem 0 0.4rem; }
+.slot-label { text-transform: capitalize; font-weight: 600; color: var(--muted); margin: 0; }
+.card .meta { margin: 0 0 0.5rem; color: var(--muted); }
+.reasons { margin: 0.25rem 0 0.5rem; padding-left: 1.1rem; }
+.reasons li { margin: 0.15rem 0; }
+
+/* ── To-do list ─────────────────────────────────────────────────── */
+.todo-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+}
+.todo-block h4 { margin: 0 0 0.4rem; }
+ul.todo { list-style: none; margin: 0; padding: 0; }
+ul.todo li { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.25rem 0; }
+ul.todo input[type='checkbox'] { width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
+ul.todo input:checked + label { text-decoration: line-through; color: var(--muted); }
+
+/* ── Grocery ────────────────────────────────────────────────────── */
+ul.grocery { list-style: none; padding: 0; margin: 0.25rem 0 1rem; }
+ul.grocery li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+ul.grocery li span:first-child { flex: 1; }
+.total { font-size: 1.05rem; }
+
+.site-footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  details[open] .ai-fields { animation: fade 160ms ease-out; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+}
+
+/* ── Print: just the useful bits (to-dos + groceries) ───────────── */
+@media print {
+  .ai-box, form, .site-header p, .banner button, .site-footer { display: none; }
+  body { background: #fff; color: #000; max-width: none; }
+  .card, .todo-block { border: 1px solid #999; break-inside: avoid; }
+}

@@ -13,8 +13,11 @@
  *     never corrupt a plan.
  */
 
-const MODEL = 'gemini-2.5-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+/** Tried in order — the lite model is the fallback if the key's project
+ *  doesn't have access to the primary one. */
+const MODELS = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+const endpointFor = (model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 const TIMEOUT_MS = 20_000;
 
 /** Structured output contract the model must follow. */
@@ -49,36 +52,40 @@ const SYSTEM_PROMPT = [
  * @throws {Error} descriptive error when the call fails — callers show it as-is
  */
 export async function parseDayDescription(text, apiKey) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
   let response;
-  try {
-    response = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: RESPONSE_SCHEMA,
-          temperature: 0,
+  for (const [index, model] of MODELS.entries()) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      response = await fetch(endpointFor(model), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    throw new Error(
-      err.name === 'AbortError'
-        ? 'The AI request timed out. Please use the form below instead.'
-        : 'Could not reach the Gemini API. Check your connection, or use the form below.'
-    );
-  } finally {
-    clearTimeout(timer);
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts: [{ text }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: RESPONSE_SCHEMA,
+            temperature: 0,
+          },
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      throw new Error(
+        err.name === 'AbortError'
+          ? 'The AI request timed out. Please use the form below instead.'
+          : 'Could not reach the Gemini API. Check your connection, or use the form below.'
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    // Model unavailable for this key? Try the fallback model.
+    if (response.status === 404 && index < MODELS.length - 1) continue;
+    break;
   }
 
   if (!response.ok) {

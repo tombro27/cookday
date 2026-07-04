@@ -80,7 +80,8 @@ structured form ────────────► normalizeContext()      
 ### The optional GenAI layer
 
 The "describe your day in plain words" box makes a **real Gemini API call**
-(`gemini-2.5-flash`, JSON-schema-constrained) to parse free text like
+(`gemini-3.5-flash`, falling back to `gemini-3.1-flash-lite` if the key lacks
+access; JSON-schema-constrained) to parse free text like
 *"crazy busy Tuesday, cooking for 3, ₹400, no dairy"* into the same structured
 context the form produces. Deliberate choices:
 

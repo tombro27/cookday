@@ -26,6 +26,8 @@ like?"* — into a complete, actionable cooking plan:
 
 ## Quick start
 
+**Live demo:** https://tombro27.github.io/cookday/
+
 ```bash
 npm start        # zero dependencies — serves at http://localhost:8080
 npm test         # unit tests via Node's built-in test runner

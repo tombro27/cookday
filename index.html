@@ -53,6 +53,13 @@
 
       <div class="form-grid">
         <fieldset>
+          <legend>Which meals are you cooking?</legend>
+          <label><input type="checkbox" name="meals" value="breakfast" checked /> Breakfast</label>
+          <label><input type="checkbox" name="meals" value="lunch" checked /> Lunch</label>
+          <label><input type="checkbox" name="meals" value="dinner" checked /> Dinner</label>
+        </fieldset>
+
+        <fieldset>
           <legend>How does the day look?</legend>
           <label><input type="radio" name="dayType" value="busy" /> Busy — barely time to cook</label>
           <label><input type="radio" name="dayType" value="normal" checked /> Normal working day</label>
@@ -105,7 +112,8 @@
     </form>
 
     <!-- ── Results ────────────────────────────────────────────────── -->
-    <section id="results" hidden aria-live="polite">
+    <p id="plan-status" class="visually-hidden" role="status" aria-live="polite"></p>
+    <section id="results" hidden>
       <h2 id="results-heading" tabindex="-1">Your day, planned</h2>
       <div id="budget-banner"></div>
       <div id="plan-cards" class="cards"></div>

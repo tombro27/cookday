@@ -5,8 +5,10 @@
 CookDay is a micro app that turns one question — *"what does your day look
 like?"* — into a complete, actionable cooking plan:
 
-1. **Breakfast / lunch / dinner plan** — chosen for the time, diet, allergies,
-   budget and pantry you actually have, with the *reasons* for every pick shown.
+1. **Breakfast / lunch / dinner plan** — for whichever of the three meals you
+   choose to cook (all by default), chosen for the time, diet, allergies,
+   budget and pantry you actually have, with the *reasons* for every pick
+   shown. Plan only dinner and the whole budget goes to dinner.
 2. **Grocery list** — ingredients aggregated across the day, scaled to your
    servings, priced in ₹, grouped for a natural shop walk-through, minus what
    you already own.
@@ -18,13 +20,15 @@ like?"* — into a complete, actionable cooking plan:
    dishes), and a one-click **budget-first re-plan**.
 5. **The to-do list itself** — a checkable task list: shopping run, prep-ahead
    work (soak the rajma tonight!), and step-by-step cooking blocks with
-   *start-by* times worked backwards from typical mealtimes.
+   *start-by* times worked backwards from typical mealtimes. If an allergy
+   swap or drop touched a recipe, the meal's tasks open with an explicit
+   **allergy note** so no original step can mislead the cook.
 
 ## Quick start
 
 ```bash
 npm start        # zero dependencies — serves at http://localhost:8080
-npm test         # 39 unit tests via Node's built-in test runner
+npm test         # unit tests via Node's built-in test runner
 ```
 
 Requires Node ≥ 18. Nothing to install; there is no build step.
@@ -61,7 +65,8 @@ structured form ────────────► normalizeContext()      
   overlap and variety (a penalty for repeating the same hero ingredient across
   meals), with weights *and semantics* that shift with the day:
   - Cost is a **constraint, not a race to the bottom** — anything within the
-    meal's budget share (25% breakfast / 37.5% lunch / 37.5% dinner) scores
+    meal's budget share (25% breakfast / 37.5% lunch / 37.5% dinner,
+    renormalized across whichever meals you selected) scores
     full marks, then tapers as the overshoot grows. So a family with a
     comfortable budget gets chicken curry, not the cheapest khichdi every day.
   - The **budget-first re-plan** switches cost to "cheapest of the pool", which
@@ -82,8 +87,9 @@ structured form ────────────► normalizeContext()      
 The "describe your day in plain words" box makes a **real Gemini API call**
 (`gemini-3.5-flash`, falling back to `gemini-3.1-flash-lite` if the key lacks
 access; JSON-schema-constrained) to parse free text like
-*"crazy busy Tuesday, cooking for 3, ₹400, no dairy"* into the same structured
-context the form produces. Deliberate choices:
+*"crazy busy Tuesday, cooking for 3, ₹400, no dairy — just dinner tonight"*
+into the same structured context the form produces (including which meals to
+plan). Deliberate choices:
 
 - **It is an enhancement, not a dependency.** Every feature works without a
   key; the form drives the identical engine.
@@ -130,9 +136,9 @@ js/engine/            pure, tested decision logic (no DOM)
   budget.js           feasibility + savings routes
   todo.js             task generation with start-by times
 js/data/              ingredient catalog (₹ prices, allergens, substitutes)
-                      and 24-recipe catalog
+                      and the recipe catalog
 js/ai/gemini.js       optional real Gemini call (free-text → context)
-tests/                39 unit tests (node --test, no frameworks)
+tests/                unit tests (node --test, no frameworks)
 server.mjs            zero-dependency static server for npm start
 ```
 

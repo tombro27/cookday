@@ -11,15 +11,24 @@
  *      with human-readable reasons.
  */
 
-import { INGREDIENTS, allergensOf } from '../data/ingredients.js';
+import { INGREDIENTS, allergensOf, isAllergySafe } from '../data/ingredients.js';
 import { RECIPES } from '../data/recipes.js';
-import { normalizeContext } from './context.js';
+import { normalizeContext, MEAL_SLOTS } from './context.js';
 import { buyCostOf } from './grocery.js';
 
-export const SLOTS = ['breakfast', 'lunch', 'dinner'];
+export const SLOTS = MEAL_SLOTS;
 
-/** Share of the day's grocery budget each meal is nudged towards. */
+/**
+ * Share of the day's grocery budget each meal is nudged towards.
+ * When the user plans only some meals, the selected shares are
+ * renormalized so they still split the whole budget.
+ */
 const BUDGET_SHARE = { breakfast: 0.25, lunch: 0.375, dinner: 0.375 };
+
+function budgetShareFor(slot, meals) {
+  const selectedTotal = meals.reduce((sum, m) => sum + BUDGET_SHARE[m], 0);
+  return BUDGET_SHARE[slot] / selectedTotal;
+}
 
 /** Diet hierarchy: a user at rank N can eat any recipe of rank ≤ N. */
 const DIET_RANK = { vegan: 0, veg: 1, egg: 2, nonveg: 3 };
@@ -44,14 +53,17 @@ export function dietAllows(userDiet, recipeDiet) {
 
 /**
  * Resolve a recipe's ingredients against the user's allergies.
- * Optional clashing ingredients are dropped; required ones are swapped
- * to the first catalog substitute that is itself allergy-safe.
+ * Optional clashing ingredients are dropped (and recorded, so the to-do
+ * list can warn the cook); required ones are swapped to the first catalog
+ * substitute that is itself allergy-safe.
  *
- * @returns {{ok: true, ingredients: Array, swaps: Array} | {ok: false, blockedBy: string}}
+ * @returns {{ok: true, ingredients: Array, swaps: Array, dropped: Array}
+ *         | {ok: false, blockedBy: string}}
  */
 export function resolveIngredients(recipe, allergies) {
   const ingredients = [];
   const swaps = [];
+  const dropped = [];
 
   for (const ing of recipe.ingredients) {
     const clash = allergensOf(ing.id).filter((a) => allergies.includes(a));
@@ -59,10 +71,13 @@ export function resolveIngredients(recipe, allergies) {
       ingredients.push({ ...ing });
       continue;
     }
-    if (ing.optional) continue; // just leave it out
+    if (ing.optional) {
+      dropped.push({ id: ing.id, reason: clash.join(', '), recipeId: recipe.id });
+      continue;
+    }
 
-    const safeSub = (INGREDIENTS[ing.id].subs ?? []).find(
-      (subId) => !allergensOf(subId).some((a) => allergies.includes(a))
+    const safeSub = (INGREDIENTS[ing.id].subs ?? []).find((subId) =>
+      isAllergySafe(allergies, subId)
     );
     if (!safeSub) return { ok: false, blockedBy: INGREDIENTS[ing.id].name };
 
@@ -74,7 +89,7 @@ export function resolveIngredients(recipe, allergies) {
       recipeId: recipe.id,
     });
   }
-  return { ok: true, ingredients, swaps };
+  return { ok: true, ingredients, swaps, dropped };
 }
 
 /** Rupees the user would need to SPEND for these ingredients (pantry items are free). */
@@ -100,6 +115,7 @@ function slotCandidates(slot, ctx) {
       recipe,
       ingredients: resolved.ingredients,
       swaps: resolved.swaps,
+      dropped: resolved.dropped,
       spend: spendFor(resolved.ingredients, ctx.servings, ctx.pantry),
     });
   }
@@ -108,7 +124,7 @@ function slotCandidates(slot, ctx) {
 
 function scoreCandidate(cand, slot, ctx, usedHeroes, weights, maxPoolSpend) {
   const slotTime = ctx.time[slot];
-  const budgetShare = Math.max(1, ctx.budget * BUDGET_SHARE[slot]);
+  const budgetShare = Math.max(1, ctx.budget * budgetShareFor(slot, ctx.meals));
 
   // Cost is a constraint, not a race to the bottom: anything within the
   // meal's budget share scores full marks, then tapers off as the overshoot
@@ -157,6 +173,9 @@ function buildReasons(cand, slot, ctx, usedHeroes) {
       `Swapped ${INGREDIENTS[swap.from].name} → ${INGREDIENTS[swap.to].name} (${swap.reason})`
     );
   }
+  for (const drop of cand.dropped) {
+    reasons.push(`Left out ${INGREDIENTS[drop.id].name} (${drop.reason})`);
+  }
   return reasons;
 }
 
@@ -175,7 +194,7 @@ export function planDay(rawContext, opts = {}) {
   const usedRecipeIds = new Set();
   const slots = [];
 
-  for (const slot of SLOTS) {
+  for (const slot of ctx.meals) {
     const all = slotCandidates(slot, ctx).filter((c) => !usedRecipeIds.has(c.recipe.id));
     let pool = all.filter((c) => c.recipe.timeMins <= ctx.time[slot]);
     const timeRelaxed = pool.length === 0 && all.length > 0;
@@ -195,6 +214,9 @@ export function planDay(rawContext, opts = {}) {
       .map((cand) => ({ cand, score: scoreCandidate(cand, slot, ctx, usedHeroes, weights, maxPoolSpend) }))
       .sort(
         (a, b) =>
+          // Once nothing fits the window, the shortest recipe wins outright —
+          // it keeps the "closest fit" explanation honest.
+          (timeRelaxed ? a.cand.recipe.timeMins - b.cand.recipe.timeMins : 0) ||
           b.score - a.score ||
           a.cand.spend - b.cand.spend ||
           a.cand.recipe.name.localeCompare(b.cand.recipe.name)
@@ -210,6 +232,7 @@ export function planDay(rawContext, opts = {}) {
       recipe: best.recipe,
       ingredients: best.ingredients,
       swaps: best.swaps,
+      dropped: best.dropped,
       spend: best.spend,
       timeRelaxed,
       reasons,

@@ -4,7 +4,7 @@
  * under: ingredient swaps and cheaper dishes for the costliest slots.
  */
 
-import { budgetSwapSuggestions } from './substitutions.js';
+import { budgetSwapSuggestions, MIN_WORTHWHILE_SAVING } from './substitutions.js';
 
 /** "₹1,234" — Indian-locale rupee formatting. */
 export function formatINR(amount) {
@@ -59,7 +59,7 @@ export function assessBudget(plan, grocery) {
                 saving: Math.round(s.spend - alt.spend),
               }))
           )
-          .filter((d) => d.saving >= 5)
+          .filter((d) => d.saving >= MIN_WORTHWHILE_SAVING)
           .sort((a, b) => b.saving - a.saving)
       : [];
 

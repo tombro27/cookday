@@ -52,6 +52,38 @@ test('prep-ahead steps get their own section when present', () => {
   assert.equal(sections.some((s) => s.title === 'Prep ahead'), hasPrepAhead);
 });
 
+test('to-do list warns before any step mentions a swapped or dropped allergen', () => {
+  // Every slot whose recipe was modified for allergies must carry an
+  // allergy-note task ahead of the cooking steps.
+  for (const allergies of [['dairy'], ['nuts'], ['dairy', 'soy'], ['gluten']]) {
+    for (const dayType of ['busy', 'normal', 'relaxed']) {
+      const plan = planDay({ dayType, allergies, diet: 'veg' });
+      const sections = buildTodoList(plan, buildGroceryList(plan));
+      for (const slot of plan.slots) {
+        if (!slot.recipe) continue;
+        const modified = (slot.swaps?.length ?? 0) + (slot.dropped?.length ?? 0) > 0;
+        if (!modified) continue;
+        const section = sections.find((s) => s.title.endsWith(slot.recipe.name));
+        const notes = section.tasks.filter((t) => t.text.startsWith('⚠ Allergy note'));
+        assert.equal(notes.length, slot.swaps.length + slot.dropped.length,
+          `${slot.recipe.name} with [${allergies}] must warn about every change`);
+        // Warnings come before the first cooking step.
+        const firstNote = section.tasks.findIndex((t) => t.text.startsWith('⚠'));
+        const firstStep = section.tasks.findIndex((t) => t.id.includes('-step-'));
+        assert.ok(firstNote < firstStep);
+      }
+    }
+  }
+});
+
+test('meal subset produces to-dos only for the chosen meals', () => {
+  const plan = planDay({ meals: ['dinner'] });
+  const sections = buildTodoList(plan, buildGroceryList(plan));
+  assert.ok(!sections.some((s) => s.title.startsWith('Breakfast')));
+  assert.ok(!sections.some((s) => s.title.startsWith('Lunch')));
+  assert.ok(sections.some((s) => s.title.startsWith('Dinner')));
+});
+
 test('forced swaps are collected once per unique swap, with the recipe named', () => {
   const plan = planDay({ allergies: ['dairy'] });
   for (const swap of collectForcedSwaps(plan)) {

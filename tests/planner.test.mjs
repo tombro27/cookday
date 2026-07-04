@@ -73,11 +73,33 @@ test('recipe is rejected when a required ingredient has no safe substitute', () 
   assert.equal(resolved.ok, false);
 });
 
-test('optional clashing ingredients are dropped silently', () => {
+test('optional clashing ingredients are dropped — and the drop is recorded', () => {
   const resolved = resolveIngredients(recipeById('poha'), ['nuts']);
   assert.ok(resolved.ok);
   assert.ok(!resolved.ingredients.some((i) => i.id === 'peanuts'));
   assert.equal(resolved.swaps.length, 0);
+  assert.deepEqual(resolved.dropped.map((d) => d.id), ['peanuts']);
+});
+
+test('planning only the selected meals', () => {
+  const dinnerOnly = planDay({ meals: ['dinner'] });
+  assert.deepEqual(dinnerOnly.slots.map((s) => s.slot), ['dinner']);
+
+  const twoMeals = planDay({ meals: ['dinner', 'breakfast'] });
+  assert.deepEqual(twoMeals.slots.map((s) => s.slot), ['breakfast', 'dinner']);
+});
+
+test('a single planned meal gets the whole budget, not a third of it', () => {
+  // Same budget, same user: planning only dinner should free the full ₹150
+  // for that one meal and produce a richer dinner than the full-day plan,
+  // where dinner competes for a 37.5% share.
+  const ctx = { dayType: 'relaxed', diet: 'nonveg', budget: 150, servings: 2 };
+  const dinner = (p) => p.slots.find((s) => s.slot === 'dinner');
+  const full = planDay(ctx);
+  const only = planDay({ ...ctx, meals: ['dinner'] });
+  assert.equal(only.slots.length, 1);
+  assert.ok(dinner(only).spend > dinner(full).spend,
+    'renormalized share should afford a heartier dinner');
 });
 
 test('no recipe repeats across the day', () => {

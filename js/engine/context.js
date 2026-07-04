@@ -10,6 +10,7 @@ import { ALLERGEN_OPTIONS, INGREDIENTS } from '../data/ingredients.js';
 
 export const DAY_TYPES = ['busy', 'normal', 'relaxed'];
 export const DIETS = ['vegan', 'veg', 'egg', 'nonveg'];
+export const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner'];
 
 /** Minutes available to cook each meal, by how the user's day looks. */
 export const TIME_DEFAULTS = {
@@ -34,13 +35,19 @@ function toNumber(value, fallback) {
  * @param {object} raw
  * @returns {{
  *   dayType: string, diet: string, servings: number, budget: number,
- *   allergies: string[], pantry: string[],
+ *   meals: string[], allergies: string[], pantry: string[],
  *   time: {breakfast: number, lunch: number, dinner: number}
  * }}
  */
 export function normalizeContext(raw = {}) {
   const dayType = DAY_TYPES.includes(raw.dayType) ? raw.dayType : 'normal';
   const diet = DIETS.includes(raw.diet) ? raw.diet : 'veg';
+
+  // Which meals to plan — always in day order; an empty or invalid
+  // selection falls back to the full day.
+  const requested = Array.isArray(raw.meals) ? raw.meals : MEAL_SLOTS;
+  let meals = MEAL_SLOTS.filter((slot) => requested.includes(slot));
+  if (meals.length === 0) meals = [...MEAL_SLOTS];
   const servings = clamp(Math.round(toNumber(raw.servings, 2)), 1, 8);
   const budget = clamp(toNumber(raw.budget, 300), 50, 5000);
 
@@ -61,5 +68,5 @@ export function normalizeContext(raw = {}) {
     dinner:    clamp(Math.round(toNumber(raw.time?.dinner, defaults.dinner)), 5, 180),
   };
 
-  return { dayType, diet, servings, budget, allergies, pantry, time };
+  return { dayType, diet, servings, budget, meals, allergies, pantry, time };
 }

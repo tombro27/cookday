@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeContext, TIME_DEFAULTS } from '../js/engine/context.js';
+import { normalizeContext, TIME_DEFAULTS, MEAL_SLOTS } from '../js/engine/context.js';
 
 test('empty input produces sane defaults', () => {
   const ctx = normalizeContext({});
@@ -33,6 +33,22 @@ test('unknown allergens and pantry ids are dropped', () => {
   });
   assert.deepEqual(ctx.allergies, ['dairy']);
   assert.deepEqual(ctx.pantry, ['rice']);
+});
+
+test('meals default to the full day', () => {
+  assert.deepEqual(normalizeContext({}).meals, MEAL_SLOTS);
+});
+
+test('meal selection is honoured, deduplicated and kept in day order', () => {
+  assert.deepEqual(normalizeContext({ meals: ['dinner', 'breakfast', 'dinner'] }).meals,
+    ['breakfast', 'dinner']);
+  assert.deepEqual(normalizeContext({ meals: ['lunch'] }).meals, ['lunch']);
+});
+
+test('an empty or invalid meal selection falls back to all meals', () => {
+  assert.deepEqual(normalizeContext({ meals: [] }).meals, MEAL_SLOTS);
+  assert.deepEqual(normalizeContext({ meals: ['brunch'] }).meals, MEAL_SLOTS);
+  assert.deepEqual(normalizeContext({ meals: 'dinner' }).meals, MEAL_SLOTS);
 });
 
 test('day type drives the time defaults', () => {

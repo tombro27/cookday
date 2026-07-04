@@ -32,8 +32,12 @@ const RESPONSE_SCHEMA = {
       type: 'ARRAY',
       items: { type: 'STRING', enum: ['dairy', 'gluten', 'nuts', 'egg', 'soy'] },
     },
+    meals: {
+      type: 'ARRAY',
+      items: { type: 'STRING', enum: ['breakfast', 'lunch', 'dinner'] },
+    },
   },
-  required: ['dayType', 'diet', 'servings', 'budget', 'allergies'],
+  required: ['dayType', 'diet', 'servings', 'budget', 'allergies', 'meals'],
 };
 
 const SYSTEM_PROMPT = [
@@ -43,6 +47,8 @@ const SYSTEM_PROMPT = [
   'servings: how many people are eating. Default 2 if unstated.',
   'budget: grocery budget for the day in Indian rupees. Default 300 if unstated.',
   'allergies: only include allergens the user explicitly mentions.',
+  'meals: which meals they want to cook. Include all three (breakfast, lunch,',
+  'dinner) unless the user clearly limits it, e.g. "just dinner tonight".',
 ].join('\n');
 
 /**

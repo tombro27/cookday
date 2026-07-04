@@ -91,11 +91,9 @@ export function allergensOf(id) {
   return INGREDIENTS[id]?.allergens ?? [];
 }
 
-/** @returns {number} price of `qty` of ingredient `id`, in rupees. */
-export function costOf(id, qty) {
-  const item = INGREDIENTS[id];
-  if (!item) throw new Error(`Unknown ingredient: ${id}`);
-  return item.price * qty;
+/** @returns {boolean} whether ingredient `id` is safe for these allergies. */
+export function isAllergySafe(allergies, id) {
+  return !allergensOf(id).some((a) => allergies.includes(a));
 }
 
 /** Ingredient ids offered as "already in my kitchen" checkboxes. */

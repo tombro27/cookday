@@ -7,7 +7,7 @@
  */
 
 import { INGREDIENTS, PANTRY_STAPLE_IDS } from './data/ingredients.js';
-import { TIME_DEFAULTS } from './engine/context.js';
+import { TIME_DEFAULTS, normalizeContext } from './engine/context.js';
 import { planDay } from './engine/planner.js';
 import { buildGroceryList } from './engine/grocery.js';
 import { assessBudget, formatINR } from './engine/budget.js';
@@ -20,6 +20,20 @@ const CONTEXT_KEY = 'cookday:context:v1';
 const GEMINI_KEY = 'cookday:gemini-key';
 
 const $ = (sel) => document.querySelector(sel);
+
+// Even *touching* window.localStorage throws in some privacy modes, so
+// capture (or null out) each storage once and let everything degrade.
+const grabStorage = (name) => {
+  try {
+    const s = window[name];
+    s.getItem(CHECKS_KEY); // probe — throws when access is blocked
+    return s;
+  } catch {
+    return null;
+  }
+};
+const local = grabStorage('localStorage');
+const session = grabStorage('sessionStorage');
 
 /** Create an element; strings become text nodes — no HTML parsing anywhere. */
 function el(tag, attrs = {}, children = []) {
@@ -37,9 +51,17 @@ function el(tag, attrs = {}, children = []) {
 
 function readJSON(storage, key, fallback) {
   try {
-    return JSON.parse(storage.getItem(key)) ?? fallback;
+    return JSON.parse(storage?.getItem(key)) ?? fallback;
   } catch {
     return fallback;
+  }
+}
+
+function writeJSON(storage, key, value) {
+  try {
+    storage?.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage full or blocked — persistence is a nicety, not a need */
   }
 }
 
@@ -51,6 +73,7 @@ function readContextFromForm() {
   return {
     dayType: data.get('dayType'),
     diet: data.get('diet'),
+    meals: data.getAll('meals'),
     allergies: data.getAll('allergies'),
     servings: $('#servings').value,
     budget: $('#budget').value,
@@ -71,6 +94,11 @@ function applyContextToForm(ctx) {
   };
   if (ctx.dayType) { set('dayType', ctx.dayType); syncTimeDefaults(ctx.dayType); }
   if (ctx.diet) set('diet', ctx.diet);
+  if (ctx.meals) {
+    for (const box of form.querySelectorAll('input[name="meals"]')) {
+      box.checked = ctx.meals.includes(box.value);
+    }
+  }
   for (const box of form.querySelectorAll('input[name="allergies"]')) {
     box.checked = (ctx.allergies ?? []).includes(box.value);
   }
@@ -121,6 +149,7 @@ function renderPlan(plan, grocery, budget, cheaperReplanExists) {
         el('p', { class: 'meta' },
           `⏱ ${slot.recipe.timeMins} min · 🛒 ${formatINR(slot.spend)} to buy` +
           (slot.timeRelaxed ? ' · runs past your window' : '')),
+        el('p', { class: 'tags' }, slot.recipe.tags.map((t) => el('span', { class: 'pill' }, t))),
         el('ul', { class: 'reasons' }, slot.reasons.map((r) => el('li', {}, r))),
         slot.alternatives.length
           ? el('p', { class: 'muted small' },
@@ -144,6 +173,14 @@ function renderPlan(plan, grocery, budget, cheaperReplanExists) {
       budget.status === 'over' && !cheaperReplanExists && !plan.budgetFirst
         ? el('span', {}, 'This is already the cheapest dish combination for your constraints — use the swaps below, or raise the budget.')
         : '',
+      budget.cheaperDishes.length
+        ? el('ul', { class: 'gap-list' }, budget.cheaperDishes.map((d) =>
+            el('li', {}, `${d.slot}: swap ${d.from} → ${d.to} to save ${formatINR(d.saving)}`)))
+        : '',
+      budget.status !== 'comfortable' && budget.swaps.length
+        ? el('span', { class: 'small' },
+            `With the ingredient swaps listed below: ${formatINR(budget.afterSwapsSpend)}.`)
+        : '',
     ])
   );
 }
@@ -151,7 +188,7 @@ function renderPlan(plan, grocery, budget, cheaperReplanExists) {
 function renderTodo(plan, grocery) {
   const container = $('#todo-sections');
   container.replaceChildren();
-  const checks = readJSON(localStorage, CHECKS_KEY, {});
+  const checks = readJSON(local, CHECKS_KEY, {});
 
   for (const section of buildTodoList(plan, grocery)) {
     const list = el('ul', { class: 'todo' });
@@ -159,9 +196,9 @@ function renderTodo(plan, grocery) {
       const box = el('input', { type: 'checkbox', id: `task-${task.id}` });
       box.checked = Boolean(checks[task.id]);
       box.addEventListener('change', () => {
-        const state = readJSON(localStorage, CHECKS_KEY, {});
+        const state = readJSON(local, CHECKS_KEY, {});
         state[task.id] = box.checked;
-        try { localStorage.setItem(CHECKS_KEY, JSON.stringify(state)); } catch { /* storage full/blocked — ticks just won't persist */ }
+        writeJSON(local, CHECKS_KEY, state);
       });
       list.append(el('li', {}, [box, el('label', { for: `task-${task.id}` }, task.text)]));
     }
@@ -236,7 +273,7 @@ function renderSubs(plan, grocery) {
 
 // ── Generate ─────────────────────────────────────────────────────────
 
-let lastPlanSignature = readJSON(localStorage, `${CHECKS_KEY}:sig`, null);
+let lastPlanSignature = readJSON(local, `${CHECKS_KEY}:sig`, null);
 
 function generate({ budgetFirst = false } = {}) {
   const raw = readContextFromForm();
@@ -258,13 +295,11 @@ function generate({ budgetFirst = false } = {}) {
     servings: plan.context.servings,
   });
   if (signature !== lastPlanSignature) {
-    try {
-      localStorage.setItem(CHECKS_KEY, '{}');
-      localStorage.setItem(`${CHECKS_KEY}:sig`, JSON.stringify(signature));
-    } catch { /* private mode — fine */ }
+    writeJSON(local, CHECKS_KEY, {});
+    writeJSON(local, `${CHECKS_KEY}:sig`, signature);
     lastPlanSignature = signature;
   }
-  try { localStorage.setItem(CONTEXT_KEY, JSON.stringify(raw)); } catch { /* fine */ }
+  writeJSON(local, CONTEXT_KEY, raw);
 
   renderPlan(plan, grocery, budget, cheaperReplanExists);
   renderTodo(plan, grocery);
@@ -273,6 +308,11 @@ function generate({ budgetFirst = false } = {}) {
 
   const results = $('#results');
   results.hidden = false;
+  document.body.classList.add('has-results');
+  const dishes = plan.slots.filter((s) => s.recipe).map((s) => s.recipe.name);
+  $('#plan-status').textContent =
+    `Plan ready: ${dishes.join(', ')}. Shopping estimate ${formatINR(grocery.toBuyTotal)} ` +
+    `against a ${formatINR(plan.context.budget)} budget — ${budget.status}.`;
   $('#results-heading').focus({ preventScroll: false });
 }
 
@@ -291,8 +331,12 @@ async function handleAiParse() {
   status.textContent = 'Asking Gemini…';
   try {
     const parsed = await parseDayDescription(text, key);
-    try { sessionStorage.setItem(GEMINI_KEY, key); } catch { /* fine */ }
-    applyContextToForm(parsed);
+    try { session?.setItem(GEMINI_KEY, key); } catch { /* fine */ }
+    // Clamp/validate the model's output exactly like any other input, and
+    // keep the pantry ticks the user already made — the AI knows nothing
+    // about their kitchen.
+    const safe = normalizeContext({ ...parsed, pantry: readContextFromForm().pantry });
+    applyContextToForm(safe);
     status.textContent = 'Form filled from your description — review it, then plan.';
     generate();
   } catch (err) {
@@ -319,22 +363,32 @@ function init() {
     radio.addEventListener('change', () => syncTimeDefaults(radio.value));
   }
 
+  const mealBoxes = [...document.querySelectorAll('input[name="meals"]')];
+  for (const box of mealBoxes) {
+    box.addEventListener('change', () => mealBoxes[0].setCustomValidity(''));
+  }
+
   $('#day-form').addEventListener('submit', (event) => {
     event.preventDefault();
+    if (!mealBoxes.some((b) => b.checked)) {
+      mealBoxes[0].setCustomValidity('Pick at least one meal to cook.');
+      mealBoxes[0].reportValidity();
+      return;
+    }
     generate();
   });
 
   $('#ai-parse').addEventListener('click', handleAiParse);
   $('#ai-clear-key').addEventListener('click', () => {
     $('#ai-key').value = '';
-    try { sessionStorage.removeItem(GEMINI_KEY); } catch { /* fine */ }
+    try { session?.removeItem(GEMINI_KEY); } catch { /* fine */ }
     $('#ai-status').textContent = 'Key forgotten.';
   });
 
-  const savedKey = (() => { try { return sessionStorage.getItem(GEMINI_KEY); } catch { return null; } })();
+  const savedKey = (() => { try { return session?.getItem(GEMINI_KEY); } catch { return null; } })();
   if (savedKey) $('#ai-key').value = savedKey;
 
-  const savedContext = readJSON(localStorage, CONTEXT_KEY, null);
+  const savedContext = readJSON(local, CONTEXT_KEY, null);
   if (savedContext) applyContextToForm(savedContext);
 }
 

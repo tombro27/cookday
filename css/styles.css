@@ -66,6 +66,17 @@ h2, h3, h4 { line-height: 1.25; }
 .muted { color: var(--muted); }
 .small { font-size: 0.875rem; }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ── AI box ─────────────────────────────────────────────────────── */
 .ai-box {
   background: var(--surface);
@@ -180,8 +191,10 @@ button:disabled { opacity: 0.6; cursor: wait; }
 .card h3 { margin: 0.1rem 0 0.4rem; }
 .slot-label { text-transform: capitalize; font-weight: 600; color: var(--muted); margin: 0; }
 .card .meta { margin: 0 0 0.5rem; color: var(--muted); }
+.card .tags { display: flex; gap: 0.35rem; flex-wrap: wrap; margin: 0 0 0.5rem; color: var(--muted); }
 .reasons { margin: 0.25rem 0 0.5rem; padding-left: 1.1rem; }
 .reasons li { margin: 0.15rem 0; }
+.gap-list { margin: 0.25rem 0 0; padding-left: 1.1rem; width: 100%; }
 
 /* ── To-do list ─────────────────────────────────────────────────── */
 .todo-block {
@@ -224,7 +237,10 @@ ul.grocery li span:first-child { flex: 1; }
 
 /* ── Print: just the useful bits (to-dos + groceries) ───────────── */
 @media print {
-  .ai-box, form, .site-header p, .banner button, .site-footer { display: none; }
+  .ai-box, .site-header p, .banner button, .site-footer { display: none; }
+  /* Hide the form only once there is a plan — printing before generating
+     should still produce the form, not a blank page. */
+  body.has-results form { display: none; }
   body { background: #fff; color: #000; max-width: none; }
   .card, .todo-block { border: 1px solid #999; break-inside: avoid; }
 }
